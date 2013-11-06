@@ -67,13 +67,12 @@
         scrollView.backgroundColor = [UIColor blueColor];
         self.backgroundColor = [UIColor cyanColor];
         
+        [self addSubview:scrollView];
+        self.scrollView = scrollView;
+
         self.pageWidth = 50;
         self.currentPageIndex = 0;
         self.allowTapToChangePage = YES;
-        
-        [self addSubview:scrollView];
-        
-        self.scrollView = scrollView;
     }
     
     return self;
