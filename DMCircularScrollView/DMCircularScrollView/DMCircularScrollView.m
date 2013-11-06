@@ -11,23 +11,24 @@
 
 #pragma mark - DMCircularScrollView
 
-@interface DMCircularScrollView() <UIScrollViewDelegate> {
-    UIScrollView*                               scrollView;
-    
-    // Block Handlers
-    DMCircularScrollViewDataSource              dataSource;
-    DMCircularScrollViewPageChanged             handlerPageChange;
-    
-    NSUInteger                                  previousPageIndex;
-    NSUInteger                                  currentPageIndex;
-    NSUInteger                                  totalPages;
-    
-    NSMutableArray*                             tempRepresentations;    // temp cached representation of your UIViews (if needed)
-    UITapGestureRecognizer *                    singleTapGesture;
-}
+@interface DMCircularScrollView() <UIScrollViewDelegate>
 
-@property (nonatomic,readonly)  NSUInteger      visiblePageCount;
-@property (nonatomic,readonly)  CGSize          pageSize;
+@property (nonatomic, weak) UIScrollView* scrollView;
+
+// Block Handlers
+@property (nonatomic, copy) DMCircularScrollViewDataSource dataSource;
+
+@property (nonatomic) NSUInteger previousPageIndex;
+@property (nonatomic) NSUInteger totalPages;
+
+@property (nonatomic) NSMutableArray* tempRepresentations;    // temp cached representation of your UIViews (if needed)
+@property (nonatomic) UITapGestureRecognizer* singleTapGesture;
+
+@property (nonatomic, readonly)  NSUInteger visiblePageCount;
+@property (nonatomic, readonly)  CGSize pageSize;
+
+// Used to disable vertical scrolling
+@property (nonatomic) CGFloat previousContentOffsetY;
 
 - (NSMutableArray *) viewsFromIndex:(NSUInteger) centralIndex preloadOffset:(NSUInteger) offsetLeftRight;
 - (NSMutableArray *) circularPageIndexesFrom:(NSInteger) currentIndex byAddingOffset:(NSInteger) offset;
@@ -37,27 +38,24 @@
 
 @implementation DMCircularScrollView
 
-@synthesize pageSize,pageWidth;
-@synthesize currentPageIndex,visiblePageCount;
-@synthesize handlePageChange = handlerPageChange;
-@synthesize allowTapToChangePage;
-
 #pragma  mark - Initialization Routines
 
 - (id)initWithFrame:(CGRect)frame
 {
     self = [super initWithFrame:frame];
     if (self) {
-        tempRepresentations = [[NSMutableArray alloc] init];
-        previousPageIndex = 0;
+        self.tempRepresentations = [[NSMutableArray alloc] init];
+        self.previousPageIndex = 0;
         
         self.clipsToBounds = YES;
         
-        scrollView = [[UIScrollView alloc] initWithFrame:CGRectZero];
+        UIScrollView* scrollView;
+        
+        scrollView = [[UIScrollView alloc] initWithFrame:frame];
         scrollView.pagingEnabled = YES;
-        scrollView.autoresizingMask = UIViewAutoresizingFlexibleHeight;
         scrollView.clipsToBounds = NO;
         scrollView.showsHorizontalScrollIndicator = NO;
+        scrollView.directionalLockEnabled = YES;
         scrollView.delegate = self;
         
         if (self.displayBorder)
@@ -74,12 +72,15 @@
         self.allowTapToChangePage = YES;
         
         [self addSubview:scrollView];
+        
+        self.scrollView = scrollView;
     }
+    
     return self;
 }
 
 - (UIView *) viewAtLocation:(CGPoint) touchLocation {
-    for (UIView *subView in scrollView.subviews)
+    for (UIView *subView in self.scrollView.subviews)
         if (CGRectContainsPoint(subView.frame, touchLocation))
             return subView;
     return nil;
@@ -90,50 +91,51 @@
     UIView* child = nil;
     // Allows subviews of the scrollview receiving touches
     if ((child = [super hitTest:point withEvent:event]) == self)
-        return scrollView;
+        return self.scrollView;
     return child;
 }
 
-
-- (void) setAllowTapToChangePage:(BOOL)nallowTapToChangePage {
-    allowTapToChangePage = nallowTapToChangePage;
-    
-    [scrollView removeGestureRecognizer:singleTapGesture];
-    if (singleTapGesture == nil) {
-        singleTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(singleTapGestureCaptured:)];
-        singleTapGesture.cancelsTouchesInView = NO;
-    }
-    if (allowTapToChangePage)   [scrollView addGestureRecognizer:singleTapGesture];
-}
-
-
 #pragma mark - Properties
+
+- (void) setAllowTapToChangePage:(BOOL)allowTapToChangePage {
+    _allowTapToChangePage = allowTapToChangePage;
+    
+    [self.scrollView removeGestureRecognizer:self.singleTapGesture];
+    if (self.singleTapGesture == nil) {
+        self.singleTapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(singleTapGestureCaptured:)];
+        self.singleTapGesture.cancelsTouchesInView = NO;
+    }
+    if (self.allowTapToChangePage)
+    {
+        [self.scrollView addGestureRecognizer:self.singleTapGesture];
+    }
+}
 
 - (CGSize) pageSize {
     return CGSizeMake(self.pageWidth,self.frame.size.height);
 }
 
-- (void) setPageWidth:(CGFloat)ppageWidth {
-    if (ppageWidth != pageWidth) {
-        pageWidth = ppageWidth;
+- (void) setPageWidth:(CGFloat)pageWidth {
+    if (pageWidth != self.pageWidth) {
+        _pageWidth = pageWidth;
         [self reloadData];
     }
 }
 
-- (void) setPageCount:(NSUInteger)npageCount withDataSource:(DMCircularScrollViewDataSource)ndataSource {
-    totalPages = npageCount;
-    dataSource = ndataSource;
+- (void) setPageCount:(NSUInteger)pageCount withDataSource:(DMCircularScrollViewDataSource)dataSource {
+    self.totalPages = pageCount;
+    self.dataSource = dataSource;
     [self reloadData];
 }
 
-- (void) setCurrentPageIndex:(NSUInteger)ncurrentPageIndex {
-    if (ncurrentPageIndex != currentPageIndex && ncurrentPageIndex < totalPages)
-        [self relayoutPageItems:ncurrentPageIndex];
+- (void) setCurrentPageIndex:(NSUInteger)currentPageIndex {
+    if (currentPageIndex != self.currentPageIndex && currentPageIndex < self.totalPages)
+        [self relayoutPageItems:currentPageIndex];
 }
 
 - (NSUInteger) currentPageIndex {
-    CGPoint middlePoint = CGPointMake(scrollView.contentOffset.x+self.pageSize.width/2,
-                                      scrollView.contentOffset.y+self.pageSize.height/2);
+    CGPoint middlePoint = CGPointMake(self.scrollView.contentOffset.x+self.pageSize.width/2,
+                                      self.scrollView.contentOffset.y+self.pageSize.height/2);
     UIView *currentPageView = [self viewAtLocation:middlePoint];
     return currentPageView.tag;
 }
@@ -145,8 +147,8 @@
 #pragma mark - Handle Tap To Change Page
 
 - (void)singleTapGestureCaptured:(UITapGestureRecognizer *)gesture {
-    UIView *pickedView = [self viewAtLocation:[gesture locationInView:scrollView]];
-    [scrollView setContentOffset:CGPointMake(pickedView.frame.origin.x, 0) animated:YES];
+    UIView *pickedView = [self viewAtLocation:[gesture locationInView:self.scrollView]];
+    [self.scrollView setContentOffset:CGPointMake(pickedView.frame.origin.x, 0) animated:YES];
 }
 
 #pragma mark - Delegate Helper Methods
@@ -206,6 +208,9 @@
 
 - (void)scrollViewDidScroll:(UIScrollView *)sv
 {
+    // Disable vertical scrolling
+    [sv setContentOffset: CGPointMake(sv.contentOffset.x, self.previousContentOffsetY)];
+    
     [self delegateSelector:@selector(scrollViewDidScroll:) toDelegateWithArgument:sv];
 }
 
@@ -262,12 +267,18 @@
 
 #pragma mark - Layout Managment
 
-- (void) layoutSubviews {
+- (void) layoutSubviews
+{
     [super layoutSubviews];
-    scrollView.frame = CGRectMake(((self.frame.size.width-self.pageSize.width)/2.0f),
-                                  0,
+    
+    self.scrollView.frame = CGRectMake(((self.frame.size.width-self.pageSize.width)/2.0f),
+                                  self.frame.origin.y,
                                   self.pageSize.width,
                                   self.frame.size.height);
+    
+    self.scrollView.contentOffset = CGPointZero;
+    
+    [self relayoutPageItems:self.currentPageIndex];
 }
 
 - (void) reloadData {
@@ -281,10 +292,10 @@
         visiblePages += 1;
     }
 
-    [scrollView setContentSize:CGSizeMake(self.pageSize.width*visiblePages, scrollView.frame.size.height)];
+    [self.scrollView setContentSize:CGSizeMake(self.pageSize.width*visiblePages, self.scrollView.frame.size.height)];
     
-    if (dataSource != nil) {
-        [scrollView setContentOffset:CGPointMake(self.pageSize.width, 0.0f)];
+    if (self.dataSource != nil) {
+        [self.scrollView setContentOffset:CGPointMake(self.pageSize.width, 0)];
         [self relayoutPageItems:NSUIntegerMax];
     }
 }
@@ -299,8 +310,8 @@
     
     while (remainingOffset > 0) {
         for (NSUInteger k = 0; k < abs(offset); ++k) {
-            if ((value + singleStepOffset) < 0)                 value = (totalPages-1);
-            else if ((value + singleStepOffset) >= totalPages)  value = 0;
+            if ((value + singleStepOffset) < 0)                 value = (self.totalPages-1);
+            else if ((value + singleStepOffset) >= self.totalPages)  value = 0;
             else                                                value += singleStepOffset;
             
             remainingOffset -= 1;
@@ -321,14 +332,14 @@
     [indexesList enumerateObjectsUsingBlock:^(NSNumber* viewIndex, NSUInteger idx, BOOL *stop) {
         NSUInteger indexOfView = [viewIndex intValue];
         
-        UIView *targetView = dataSource(indexOfView);
+        UIView *targetView = self.dataSource(indexOfView);
         targetView.tag = indexOfView;
         if (([viewsList containsObject:targetView] == NO && indexOfView != centralIndex) ||
             (centralIndex == indexOfView && idx == offsetLeftRight))
             [viewsList addObject:targetView];
         else {
             UIImageView *tempDuplicateRepr = [[UIImageView alloc] initWithImage:[self imageWithView:targetView]];
-            [tempRepresentations addObject:tempDuplicateRepr];
+            [self.tempRepresentations addObject:tempDuplicateRepr];
             tempDuplicateRepr.tag = indexOfView;
             [viewsList addObject:tempDuplicateRepr];
         }
@@ -349,34 +360,31 @@
 - (void) relayoutPageItems:(NSUInteger) forceSetPage {
     NSUInteger pageToSet = (forceSetPage != NSUIntegerMax ? forceSetPage : self.currentPageIndex);
     
-    currentPageIndex = pageToSet;
+    self.currentPageIndex = pageToSet;
     
-    [tempRepresentations makeObjectsPerformSelector:@selector(removeFromSuperview)];
-    [tempRepresentations removeAllObjects];
+    [self.tempRepresentations makeObjectsPerformSelector:@selector(removeFromSuperview)];
+    [self.tempRepresentations removeAllObjects];
     
-    if (handlerPageChange != nil)
-        handlerPageChange(currentPageIndex,previousPageIndex);
+    if (self.handlePageChange != nil)
+        self.handlePageChange(self.currentPageIndex,self.previousPageIndex);
     
     NSUInteger visiblePagesPerSide = ceilf(floor(self.frame.size.width/self.pageSize.width)/2.0f);
     NSUInteger pagesToCachePerSide = visiblePagesPerSide*2;
     
-    NSArray *viewsToLoad = [self viewsFromIndex:pageToSet preloadOffset:pagesToCachePerSide];//(visiblePagesPerSide+1)];
+    NSArray *viewsToLoad = [self viewsFromIndex:pageToSet preloadOffset:pagesToCachePerSide];
     
-    [scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+    [self.scrollView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
     
     CGFloat offset_x = -((self.pageSize.width*pagesToCachePerSide)-self.pageSize.width);
-    //NSLog(@"pages per side: %d. cache on left/right = %d",visiblePagesPerSide,pagesToCachePerSide);
-    //NSLog(@"start at = -(%0.fx%d) = %0.f",self.pageSize.width,pagesToCachePerSide,offset_x);
     
     for (UIView *targetView in viewsToLoad) {
         targetView.frame = CGRectMake(offset_x, 0, self.pageSize.width, self.pageSize.height);
-        [scrollView addSubview:targetView];
-        //  NSLog(@"   [%d] = x,y={%0.f,%0.f} \t\tw,h={%0.f,%0.f}",targetView.tag,targetView.frame.origin.x,targetView.frame.origin.y,targetView.frame.size.width,targetView.frame.size.height);
+        [self.scrollView addSubview:targetView];
         offset_x+=self.pageSize.width;
     }
-    [scrollView setContentOffset:CGPointMake(self.pageSize.width, 0.0f)];
+    [self.scrollView setContentOffset:CGPointMake(self.pageSize.width, 0)];
     
-    previousPageIndex = self.currentPageIndex;
+    self.previousPageIndex = self.currentPageIndex;
 }
 
 - (UIImage *) imageWithView:(UIView *)view {
