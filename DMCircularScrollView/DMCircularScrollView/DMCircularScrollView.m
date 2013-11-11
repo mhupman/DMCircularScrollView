@@ -69,7 +69,7 @@
         
         [self addSubview:scrollView];
         self.scrollView = scrollView;
-
+        
         self.pageWidth = 50;
         self.currentPageIndex = 0;
         self.allowTapToChangePage = YES;
@@ -271,26 +271,26 @@
     [super layoutSubviews];
     
     self.scrollView.frame = CGRectMake(((self.frame.size.width-self.pageSize.width)/2.0f),
-                                  self.frame.origin.y,
-                                  self.pageSize.width,
-                                  self.frame.size.height);
+                                       self.frame.origin.y,
+                                       self.pageSize.width,
+                                       self.frame.size.height);
     
     self.scrollView.contentOffset = CGPointZero;
     
-    [self relayoutPageItems:self.currentPageIndex];
+    [self reloadData];
 }
 
 - (void) reloadData {
     NSUInteger visiblePages = ceilf(self.frame.size.width/self.pageSize.width);
-
+    
     // We need to check to see if self.frame.size.width is evenly divisible
     // by the pageSize width. If true then we want one more visible
-    // page. 
+    // page.
     if (fmodf(self.frame.size.width, self.pageSize.width) == 0)
     {
         visiblePages += 1;
     }
-
+    
     [self.scrollView setContentSize:CGSizeMake(self.pageSize.width*visiblePages, self.scrollView.frame.size.height)];
     
     if (self.dataSource != nil) {
