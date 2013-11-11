@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.homepage     = 'https://github.com/mhupman/DMCircularScrollView'
   s.license      = 'MIT'
   s.author       = { 'Daniele Margutti' => 'http://www.danielemargutti.com' }            
-  s.source       = { :git => 'https://github.com/mhupman/DMCircularScrollView.git', :tag => '1.0.0' }
+  s.source       = { :git => 'https://github.com/mhupman/DMCircularScrollView.git', :tag => '1.0.2' }
   s.platform     = :ios
   s.ios.deployment_target = '5.0'
   s.source_files = 'Classes', 'DMCircularScrollView/DMCircularScrollView/*.{h,m}'
