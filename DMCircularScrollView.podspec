@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'DMCircularScrollView'
-  s.version      = '1.0.0'
+  s.version      = '1.0.2'
   s.summary      = 'Infinite/Circular Scrolling Implementation for UIScrollView.'
   s.homepage     = 'https://github.com/mhupman/DMCircularScrollView'
   s.license      = 'MIT'
