@@ -359,13 +359,11 @@
 - (void) relayoutPageItems:(NSUInteger) forceSetPage {
     NSUInteger pageToSet = (forceSetPage != NSUIntegerMax ? forceSetPage : self.currentPageIndex);
     
-    self.currentPageIndex = pageToSet;
-    
     [self.tempRepresentations makeObjectsPerformSelector:@selector(removeFromSuperview)];
     [self.tempRepresentations removeAllObjects];
     
     if (self.handlePageChange != nil)
-        self.handlePageChange(self.currentPageIndex,self.previousPageIndex);
+        self.handlePageChange(pageToSet,self.previousPageIndex);
     
     NSUInteger visiblePagesPerSide = ceilf(floor(self.frame.size.width/self.pageSize.width)/2.0f);
     NSUInteger pagesToCachePerSide = visiblePagesPerSide*2;
